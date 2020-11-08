@@ -1,0 +1,177 @@
+# -*- coding: utf-8 -*-
+"""Proyecto
+Manuela Zapata Mesa
+Maria Alejandra Moncada
+Andrea Carvajal Maldonado
+Juliana Restrepo Tobar
+"""
+
+import pandas as pd
+import numpy
+import io
+from google.colab import files
+uploaded = files.upload()
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+import sklearn.metrics as metrics
+
+def count(data: pd.DataFrame):
+    data=data.replace(to_replace="M", value=1)
+    data=data.replace(to_replace="B", value=0)
+    dicc = {}
+    dicc["pos"] = data["diagnosis"].sum()
+    dicc["neg"] = data["diagnosis"].count() - dicc["pos"]  # 
+    return dicc
+
+def vals(serie: pd.Series):
+
+    lis = []
+    for key in serie.value_counts().index: 
+        lis.append(key)
+    return lis
+
+class question:
+    def __init__(self,column,value):
+        self.column=column
+        self.value=value
+
+    def match(self,row):
+        val=row[self.column]
+        if isinstance(val, str):
+            return val == self.value
+        else:
+            return val >= self.value
+        
+    def __repr__(self):
+        cond="=="
+        if isinstance(self.value,int) or isinstance(self.value,float):
+            cond=">="
+        return "Es %s %s %s?" % (self.column, cond, str(self.value))
+   
+    
+
+def partition(data, question):
+    if isinstance(question.value, int) or isinstance(question.value, float):
+        true_rows = data[data[question.column] >= question.value]
+        false_rows = data[data[question.column] < question.value]
+    else:
+        true_rows = data[data[question.column] == question.value]
+        false_rows = data[data[question.column] != question.value]
+    return true_rows, false_rows
+
+def gini(data):
+    N = count(data)
+    gin = 1
+    for keys in N:
+        probi = N[keys] / float(len(data))
+        gin -= probi ** 2
+    return gin
+
+def informationGain(left: pd.DataFrame, right: pd.DataFrame, gin):
+    infog = float((len(left)) / (len(left) + len(right)))
+    return gin - infog * gini(left) - (1 - infog) * gini(right)
+
+def bestoption(data: pd.DataFrame):
+    maxi = 0
+    bestquestion = None
+    gin = gini(data)
+    for key in data.keys():
+        values = vals(data[key])
+        if key == "diagnosis":
+            continue
+        for v in values:
+            q = question(key, v)
+            true_rows, false_rows = partition(data, q)
+
+            if len(true_rows) == 0 or len(false_rows) == 0:
+                continue
+            gain = informationGain(true_rows, false_rows, gin)
+
+            if gain >= maxi:
+                maxi, bestquestion = gain, q
+
+    return maxi, bestquestion
+
+class Leaf:
+
+    def __init__(self, data):
+
+        self.predic =  count(data)["pos"]/len(data)
+
+class Node:
+
+    def __init__(self, question, True_row, False_row):
+        self.question = question
+        self.True_row = True_row
+        self.False_row = False_row
+
+def build(data: pd.DataFrame, deep):
+
+    gain, bestQues = bestoption(data)
+
+    if deep==0 or gain==0:
+        return Leaf(data)
+    
+    true_row, false_row = partition(data, bestQues)
+
+    True_branch = build(true_row,deep-1)
+    False_branch = build(false_row,deep-1)
+
+    return Node(bestQues, True_branch, False_branch)
+
+def printT(node, spacing=""):
+
+    if isinstance(node, Leaf):
+        print(spacing + "predict", node.predic)
+        return
+
+    print(spacing + str(node.question))
+
+    print(spacing + '--> True:')
+    printT(node.True_row, spacing + "  ")
+
+    print(spacing + '--> False:')
+    printT(node.False_row, spacing + "  ")
+
+def classify(serie: pd.Series, node):
+    if isinstance(node, Leaf):
+        if node.predic >= 0.5:
+            return node.predic, 1
+        else:
+            return node.predic, 0
+
+    if node.question.match(serie):
+        return classify(serie, node.True_row)
+    else:
+        return classify(serie, node.False_row)
+    
+
+if __name__=="__main__":
+    data0= pd.read_csv(io.BytesIO(uploaded['data.csv']))
+    trainset=data0[0:428]
+    mytree=build(trainset, 8)
+    dataset=data0[428:]
+    dataset=dataset.replace(to_replace="M",value=1)
+    dataset=dataset.replace(to_replace="B",value=0)
+    diagnosis=[]
+    proba=[]
+    for i in range(len(dataset)):
+        a,b=classify(dataset.iloc[i],mytree)
+        diagnosis.append(b)
+        proba.append(a)
+    fpr, tpr, threshold = metrics.roc_curve(dataset["diagnosis"],diagnosis)
+    roc_auc = metrics.auc(fpr, tpr)
+    print(diagnosis)
+    print(proba)
+    print(accuracy_score(diagnosis,dataset["diagnosis"]))
+    print(confusion_matrix(dataset["diagnosis"],diagnosis))
+    import matplotlib.pyplot as plt
+    plt.title('Receiver Operating Characteristic')
+    plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+    plt.legend(loc = 'lower right')
+    plt.plot([0, 1], [0, 1],'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()
