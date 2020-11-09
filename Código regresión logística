@@ -1,0 +1,31 @@
+import io
+import pandas as pd
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from google.colab import files
+uploaded = files.upload()
+data0= pd.read_csv(io.BytesIO(uploaded['data.csv']))
+data0=data0.replace(to_replace="M", value=1)
+data0=data0.replace(to_replace="B", value=0)
+trainset=data0[0:429]
+testset=data0[428:]
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression(max_iter=10000)
+model.fit(trainset[['radius_mean','texture_mean','perimeter_mean','area_mean','smoothness_mean','compactness_mean','concavity_mean',"concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]], trainset.diagnosis)
+a=model.predict(testset[['radius_mean','texture_mean','perimeter_mean','area_mean','smoothness_mean','compactness_mean','concavity_mean',"concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]])
+print(a)
+print(accuracy_score(testset["diagnosis"], a))
+print(confusion_matrix(testset["diagnosis"],a))
+import sklearn.metrics as metrics
+fpr, tpr, threshold = metrics.roc_curve(testset["diagnosis"],a)
+roc_auc = metrics.auc(fpr, tpr)
+import matplotlib.pyplot as plt
+plt.title('Receiver Operating Characteristic')
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
