@@ -1,25 +1,29 @@
 import io
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from google.colab import files
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
-from google.colab import files
+import sklearn.metrics as metrics
+import matplotlib.pyplot as plt
 uploaded = files.upload()
 data0= pd.read_csv(io.BytesIO(uploaded['data.csv']))
 data0=data0.replace(to_replace="M", value=1)
 data0=data0.replace(to_replace="B", value=0)
-trainset=data0[0:429]
-testset=data0[428:]
-from sklearn.linear_model import LogisticRegression
+data0=data0.fillna(method="ffill")
+data0=data0.fillna(method="bfill")
+x_train, x_test, y_train, y_test=train_test_split(data0[['radius_mean','texture_mean','perimeter_mean','area_mean','smoothness_mean','compactness_mean','concavity_mean',"concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]],data0.diagnosis)
 model = LogisticRegression(max_iter=10000)
-model.fit(trainset[['radius_mean','texture_mean','perimeter_mean','area_mean','smoothness_mean','compactness_mean','concavity_mean',"concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]], trainset.diagnosis)
-a=model.predict(testset[['radius_mean','texture_mean','perimeter_mean','area_mean','smoothness_mean','compactness_mean','concavity_mean',"concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]])
+model.fit(x_train, y_train)
+a=model.predict(x_test)
 print(a)
-print(accuracy_score(testset["diagnosis"], a))
-print(confusion_matrix(testset["diagnosis"],a))
-import sklearn.metrics as metrics
-fpr, tpr, threshold = metrics.roc_curve(testset["diagnosis"],a)
+accuracy=accuracy_score(y_test, a)
+fpr, tpr, threshold = metrics.roc_curve(y_test,a)
 roc_auc = metrics.auc(fpr, tpr)
-import matplotlib.pyplot as plt
+print(confusion_matrix(y_test,a))
+print(model.coef_, model.intercept_)
+print(roc_auc)
 plt.title('Receiver Operating Characteristic')
 plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
 plt.legend(loc = 'lower right')
